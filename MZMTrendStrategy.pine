@@ -1,0 +1,117 @@
+//@version=4
+
+strategy("MZM Trend Strategy",shorttitle="MZM Trend Strategy",overlay=true)
+
+src=input(close,"Source")
+AP2 = input(defval=14,title="Length",minval=1)
+Trail1 = ema(src,AP2) 
+AF2 = input(defval=2,title="Percent",minval=0.1)/100
+SL2 = Trail1*AF2 // Stop Loss
+Trail2 = 0.0
+Trail2 := iff(Trail1>nz(Trail2[1],0) and Trail1[1]>nz(Trail2[1],0),max(nz(Trail2[1],0),Trail1-SL2),iff(Trail1<nz(Trail2[1],0) and Trail1[1]<nz(Trail2[1],0),min(nz(Trail2[1],0),Trail1+SL2),iff(Trail1>nz(Trail2[1],0),Trail1-SL2,Trail1+SL2)))
+
+// Bar color for trade signal //
+Green = Trail1 > Trail2 and close > Trail2 and low > Trail2
+Blue = Trail1 > Trail2 and close > Trail2 and low < Trail2
+Red = Trail2 > Trail1 and close < Trail2 and high < Trail2
+Yellow = Trail2 > Trail1 and close < Trail2 and high > Trail2
+
+// Signals //
+Bull = barssince(Green)<barssince(Red)
+Bear = barssince(Red)<barssince(Green)
+
+Buy = crossover(Trail1, Trail2)
+Sell = crossunder(Trail1, Trail2)
+SR=(iff(Trail1 > Trail2 ,1, iff(Trail2 > Trail1,-1,0)))
+
+TS1 = plot(Trail1, "ExMov", style=plot.style_line,color=Trail1 > Trail2 ? color.blue : color.yellow, linewidth=2)
+TS2 = plot(Trail2, "Most", style=plot.style_line,color=Trail1 > Trail2 ? color.green : color.red, linewidth=2)
+fill(TS1,TS2,Bull ? color.green : color.red, transp=90)
+
+
+plotcolor = input(true, "Mum Renk Değişimi", input.bool)
+plotbuysell = input(true, "Sinyal Okları", input.bool)
+
+bcl = iff(plotcolor == 1, Blue ? color.blue : Green ? color.lime : Yellow ? color.yellow : Red ? color.red : color.purple, na)
+barcolor(bcl)
+
+
+aldigimfiyat=tostring(valuewhen(Buy,src,0))
+sattigimfiyat=tostring(valuewhen(Sell,src,0))
+
+
+if Buy==1 and plotbuysell == 1
+    l = label.new(bar_index, na)
+    label.set_text(l, aldigimfiyat)
+    label.set_color(l, color.green)
+    label.set_yloc(l, yloc.belowbar)
+    label.set_style(l, label.style_labelup)
+if Sell==1 and plotbuysell == 1
+    l = label.new(bar_index, na)
+    label.set_text(l, sattigimfiyat)
+    label.set_color(l, color.red)
+    label.set_yloc(l, yloc.abovebar)
+    label.set_style(l, label.style_labeldown)
+    
+ 
+plotshape(Buy and plotbuysell == 1,"AL", text="AL", location=location.belowbar, style=shape.labelup, size=size.tiny, color=color.navy, textcolor=color.white, transp=0)
+plotshape(Sell and plotbuysell == 1,"SAT", text="SAT", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white, transp=0)
+
+
+nround(x) => 
+    n = round(x / syminfo.mintick) * syminfo.mintick
+
+
+RoundToTick( _price) => round(_price/syminfo.mintick)*syminfo.mintick
+
+Round( _val, _decimals) => 
+    
+    _p = pow(10,_decimals)
+    round(abs(_val)*_p)/_p*sign(_val)
+
+
+position=input(50)
+h=highest(position)
+info_label_off = input(50, title="Info panel offset")
+info_label_size = input(size.normal, options=[size.tiny, size.small, size.normal, size.large, size.huge], title="Info panel label size")
+info_panel_x = timenow + round(change(time)*info_label_off)+10
+info_panel_y = h
+info_current_close = "\n\nSON KAPANIŞ : " + tostring(close)
+
+disp_panels1 = input(true, title="ALIŞ BİLGİLENDİRME PANELİ")
+disp_panels2 = input(true, title="SATIŞ BİLGİLENDİRME PANELİ")
+
+Long="-=-=-ALIŞ-=-=-   "
+Short="-=-=-SATIŞ-=-=-   "
+
+pp1 = "\n\Geçen BAR : " + tostring(barssince(Buy), "##.##")
+pp2 = "\n\Geçen BAR : " + tostring(barssince(Sell), "##.##")
+
+Buyprice="\n\İşleme Giriş Fiyatı  : " + tostring(valuewhen(Buy,src,0), "##.##") + ""
+ProfitLong="\n\Anlık KAR : " + "(" + tostring(100 * ((src - valuewhen(Buy, src,0)) / valuewhen(Buy, src,0)), "##.##") + "%" + ")"
+
+Sellprice="\n\İşleme Giriş Fiyatı  : " + tostring(valuewhen(Sell, src,0), "##.##") + ""
+ProfitShort="\n\Anlık KAR : " + "(" + tostring(100 * ((valuewhen(Sell, src,0) - src) / valuewhen(Sell, src,0)), "##.##") + "%" + ")"
+
+info_textlongbuy =Long+info_current_close+pp1+Buyprice+ProfitLong
+info_textlongsell =Short+info_current_close+pp2+Sellprice+ProfitShort
+info_panellongbuy = SR==1 and disp_panels1 ? label.new(x=info_panel_x, y=info_panel_y, text=info_textlongbuy, xloc=xloc.bar_time, yloc=yloc.price, color=color.green, style=label.style_labelup, textcolor=color.black, size=info_label_size) : na 
+info_panellongsell = SR==-1 and disp_panels2 ? label.new(x=info_panel_x, y=info_panel_y, text=info_textlongsell, xloc=xloc.bar_time, yloc=yloc.price, color=color.red, style=label.style_labelup, textcolor=color.black, size=info_label_size) : na
+label.delete(info_panellongbuy[1])
+label.delete(info_panellongsell[1])
+
+dummy0 = input(true, title = "=Backtest Inputs=")
+FromDay    = input(defval = 1, title = "From Day", minval = 1, maxval = 31)
+FromMonth  = input(defval = 1, title = "From Month", minval = 1, maxval = 12)
+FromYear   = input(defval = 2005, title = "From Year", minval = 2005)
+ToDay      = input(defval = 1, title = "To Day", minval = 1, maxval = 31)
+ToMonth    = input(defval = 1, title = "To Month", minval = 1, maxval = 12)
+ToYear     = input(defval = 9999, title = "To Year", minval = 2006)
+Start     = timestamp(FromYear, FromMonth, FromDay, 00, 00)
+Finish    = timestamp(ToYear, ToMonth, ToDay, 23, 59)
+Timerange() =>
+    time >= Start and time <= Finish ? true : false
+if Buy==1
+    strategy.entry("Long", strategy.long,when=Timerange())
+if Sell==1
+    strategy.entry("Short", strategy.short,when=Timerange())
