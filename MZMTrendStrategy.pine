@@ -15,15 +15,16 @@ Green = Trail1 > Trail2 and close > Trail2 and low > Trail2
 Blue = Trail1 > Trail2 and close > Trail2 and low < Trail2
 Red = Trail2 > Trail1 and close < Trail2 and high < Trail2
 Yellow = Trail2 > Trail1 and close < Trail2 and high > Trail2
+// Bar color for trade signal //
 
 // Signals //
 Bull = barssince(Green)<barssince(Red)
 Bear = barssince(Red)<barssince(Green)
+// Signals //
 
 Buy = crossover(Trail1, Trail2)
 Sell = crossunder(Trail1, Trail2)
 SR=(iff(Trail1 > Trail2 ,1, iff(Trail2 > Trail1,-1,0)))
-
 TS1 = plot(Trail1, "ExMov", style=plot.style_line,color=Trail1 > Trail2 ? color.blue : color.yellow, linewidth=2)
 TS2 = plot(Trail2, "Most", style=plot.style_line,color=Trail1 > Trail2 ? color.green : color.red, linewidth=2)
 fill(TS1,TS2,Bull ? color.green : color.red, transp=90)
@@ -46,6 +47,7 @@ if Buy==1 and plotbuysell == 1
     label.set_color(l, color.green)
     label.set_yloc(l, yloc.belowbar)
     label.set_style(l, label.style_labelup)
+    
 if Sell==1 and plotbuysell == 1
     l = label.new(bar_index, na)
     label.set_text(l, sattigimfiyat)
@@ -100,6 +102,9 @@ info_panellongsell = SR==-1 and disp_panels2 ? label.new(x=info_panel_x, y=info_
 label.delete(info_panellongbuy[1])
 label.delete(info_panellongsell[1])
 
+
+// Backtest //
+
 dummy0 = input(true, title = "=Backtest Inputs=")
 FromDay    = input(defval = 1, title = "From Day", minval = 1, maxval = 31)
 FromMonth  = input(defval = 1, title = "From Month", minval = 1, maxval = 12)
@@ -115,3 +120,5 @@ if Buy==1
     strategy.entry("Long", strategy.long,when=Timerange())
 if Sell==1
     strategy.entry("Short", strategy.short,when=Timerange())
+
+// Backtest //
